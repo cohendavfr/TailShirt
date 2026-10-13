@@ -13,20 +13,20 @@ python3 -m venv .venv && .venv/bin/pip install numpy pytest
 .venv/bin/python prototype/simulate.py
 ```
 
-## Résultats de simulation (M0)
+## Résultats de simulation (M0, sans mètre ruban)
 
-Population **synthétique** (modèle à facteurs latents, paramètres plausibles, pas des données réelles) ;
-2000 personnes ; bruit : mètre ruban 0,4 cm, photo 1,5–3,5 cm, réponses déclaratives 1–1,5 cm.
+Population **synthétique** (pas de données réelles), 1000 personnes, 5 étapes max, tolérances assouplies pour cou et poignet (±1 cm).
+Part des mesures dans la tolérance :
 
-| Politique | Questions | Mesures dans la tolérance |
-|-----------|-----------|---------------------------|
-| Adaptative, plafond 8 | 8 | 7/9 à ≥ 99 % ; cou 30 %, poignet 45 %, biceps 50 % |
-| Adaptative, plafond 12 | 12 | 9/9 ≥ 83 %, la plupart ≥ 98 % |
-| Aléatoire, plafond 8 | 8 | 57–76 % partout |
+| Scénario | Effort | Cou | Poitrine | Taille | Épaules | Manche | Poignet |
+|----------|--------|-----|----------|--------|---------|--------|---------|
+| A. Questions seules | 5 | 73 % | 36 % | 19 % | 44 % | 58 % | 74 % |
+| B. + photos (face, profil, chemise à plat) | 7 | 91 % | 86 % | 64 % | 86 % | 89 % | 92 % |
+| C. + LiDAR | 9 | 92 % | 96 % | 92 % | 94 % | 91 % | 95 % |
 
 Enseignements :
 
-1. **Les mesures corporelles sont peu prédictibles les unes par les autres** (résidu spécifique important). Avec les tolérances du cahier des charges (±0,5 cm cou/poignet), il faut quasiment une mesure directe par cible ; le modèle statistique sert surtout à choisir lesquelles et à ordonner.
-2. Le critère d'arrêt à 90 % n'est jamais atteint avec un bruit de ruban de 0,4 cm pour cou et poignet (1,645 × 0,4 > 0,5) : tolérance ou bruit à revoir.
-3. L'objectif glouton « réduction de variance pondérée » concentrait l'effort sur une seule cible ; le **gain d'information (log-ratio) restreint aux cibles non atteintes** répartit mieux et bat l'ordre aléatoire.
-4. Ces chiffres dépendent entièrement des paramètres synthétiques : à **recalibrer sur ANSUR II** puis sur données réelles avant toute conclusion produit.
+1. Les questions seules ne suffisent pas ; les photos sont indispensables, le LiDAR apporte le meilleur gain sur poitrine et taille.
+2. Sans ruban, ±0,5 cm sur cou/poignet n'est pas réaliste : viser ±1 cm.
+3. La photo d'une chemise existante est la meilleure source pour cou, manche et poignet, mais elle mesure la chemise (aisance), pas le corps.
+4. Chiffres liés à des hypothèses de bruit à vérifier avec une vraie estimation de pose, puis à recaler sur ANSUR II.

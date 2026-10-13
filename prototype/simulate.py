@@ -1,6 +1,9 @@
-"""Simulation : combien de questions, et quelle précision, sur une population synthétique."""
+"""Simulation sans mètre ruban : smartphone et questions simples uniquement."""
 import numpy as np
-from engine import Estimator, IDX, LOAD, MEAN, STD, TARGETS
+from engine import (Estimator, IDX, LOAD, MEAN, STD, TARGETS, default_candidates)
+
+# tolérances « made-to-measure » réalistes pour un usage sans ruban (cou/poignet : pas de 1 cm)
+RELAXED = {**TARGETS, "neck": (1.0, 1.0), "wrist": (1.0, 0.6)}
 
 
 def sample_people(n, rng):
@@ -10,45 +13,32 @@ def sample_people(n, rng):
     return MEAN + STD * (z @ LOAD.T + spec * resid)
 
 
-def run(person, rng, policy="adaptive", max_q=8):
-    est = Estimator(max_questions=max_q)
-    order = list(est.candidates)
-    if policy == "random":
-        rng.shuffle(order)
+def run(person, rng, cands, max_steps, targets):
+    est = Estimator(cands, max_questions=max_steps, targets=targets)
     cost = 0.0
-    while True:
-        if policy == "adaptive":
-            c = est.next_question()
-        else:  # ordre aléatoire, mêmes critères d'arrêt
-            c = None
-            if not est.done() and len(est.asked) < max_q:
-                c = est.candidates[order[len(est.asked)]]
-        if c is None:
-            break
-        est.update(c.key, person[IDX[c.var]] + rng.normal(0, c.noise))
+    while (c := est.next_question()):
+        est.update(c.key, {v: person[IDX[v]] + rng.normal(0, s) for v, s in c.obs})
         cost += c.cost
-    res = est.result()
-    err = {k: res[k]["mean"] - person[IDX[k]] for k in TARGETS}
-    return len(est.asked), cost, err, est.done()
+    r = est.result()
+    return list(est.asked), cost, {k: r[k]["mean"] - person[IDX[k]] for k in TARGETS}
 
 
-def report(policy, n=2000, seed=0, max_q=8):
+def scenario(name, cands, max_steps=5, targets=RELAXED, n=1000, seed=0):
     rng = np.random.default_rng(seed)
-    people = sample_people(n, rng)
-    qs, costs, errs, done = [], [], [], 0
-    for p in people:
-        q, c, e, d = run(p, rng, policy, max_q)
-        qs.append(q); costs.append(c); errs.append(e); done += d
-    print(f"\n== politique : {policy} (n={n}, plafond {max_q} questions) ==")
-    print(f"questions moyennes : {np.mean(qs):.2f} | effort moyen : {np.mean(costs):.1f} "
-          f"| critère d'arrêt atteint : {100*done/n:.0f} %")
-    print(f"{'mesure':10s} {'MAE cm':>7s} {'tol ±':>6s} {'% dans tol':>11s}")
-    for k, (tol, _) in TARGETS.items():
-        e = np.abs([x[k] for x in errs])
-        print(f"{k:10s} {e.mean():7.2f} {tol:6.1f} {100*(e<=tol).mean():10.0f}%")
+    P = sample_people(n, rng)
+    out = [run(p, rng, cands, max_steps, targets) for p in P]
+    steps = np.mean([len(o[0]) for o in out]); cost = np.mean([o[1] for o in out])
+    print(f"\n{name} | étapes {steps:.1f} | effort {cost:.1f}")
+    print(f"  {'mesure':9s} {'MAE':>5s} {'tol spec':>8s} {'ok spec':>8s} {'tol rel.':>8s} {'ok rel.':>8s}")
+    for k in TARGETS:
+        e = np.abs([o[2][k] for o in out])
+        print(f"  {k:9s} {e.mean():5.2f} {TARGETS[k][0]:8.1f} {100*(e<=TARGETS[k][0]).mean():7.0f}% "
+              f"{RELAXED[k][0]:8.1f} {100*(e<=RELAXED[k][0]).mean():7.0f}%")
 
 
 if __name__ == "__main__":
-    for q in (8, 12):
-        report("adaptive", max_q=q)
-    report("random", max_q=8)
+    base = [c for c in default_candidates() if c.key.startswith("ask_")]
+    nolidar = default_candidates()
+    scenario("A. questions seules", base)
+    scenario("B. questions + photos (sans LiDAR)", nolidar)
+    scenario("C. avec LiDAR", default_candidates(lidar=True))

@@ -1,7 +1,7 @@
 import sys, pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "prototype"))
 import numpy as np
-from engine import Estimator, IDX, prior_covariance
+from engine import Estimator, IDX, prior_covariance, default_candidates, tape_candidates
 
 
 def test_prior_covariance_is_psd():
@@ -17,7 +17,7 @@ def test_update_reduces_variance_and_moves_mean():
 
 
 def test_precise_observation_pins_value():
-    est = Estimator()
+    est = Estimator(default_candidates() + tape_candidates())
     est.update("tape_neck", 42.0)
     r = est.result()["neck"]
     assert abs(r["mean"] - 42.0) < 0.3 and r["std"] < 0.4
@@ -29,4 +29,4 @@ def test_never_asks_same_question_twice():
     while (q := est.next_question()):
         assert q.key not in seen
         seen.add(q.key)
-        est.update(q.key, float(est.mu[IDX[q.var]]))
+        est.update(q.key, float(est.mu[IDX[q.obs[0][0]]]))

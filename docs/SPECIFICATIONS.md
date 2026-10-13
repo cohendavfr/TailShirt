@@ -1,6 +1,6 @@
 # TailShirt — Spécifications techniques
 
-Version 0.1 (brouillon) — 2026-10-14
+Version 0.2 (brouillon) — 2026-10-14
 
 ## 1. Objectif
 
@@ -31,6 +31,8 @@ Pour chaque mesure, l'algorithme retourne : valeur estimée, écart-type, interv
 
 ## 3. Entrées utilisateur
 
+> **Contrainte v0.2 : aucun mètre ruban.** Tout passe par des questions simples et le smartphone. Les sections 3.3 et 4.5 remplacent les références au ruban.
+
 ### 3.1 Questions simples (sans mètre ruban)
 Taille, poids, âge, sexe (pour le choix du modèle statistique), morphologie perçue (ventre, épaules, etc.), taille de chemise habituelle, tour de cou habituel s'il est connu.
 
@@ -40,6 +42,18 @@ Taille, poids, âge, sexe (pour le choix du modèle statistique), morphologie pe
 - Extraction de points clés corporels (pose estimation) : épaules, bras, torse, hanches ; largeurs et longueurs en pixels converties en cm.
 - Les mesures issues de la photo sont traitées comme des **observations bruitées** (avec leur propre écart-type), pas comme des vérités.
 - Traitement **sur l'appareil** par défaut ; aucune photo n'est envoyée au serveur ni conservée sans consentement explicite.
+
+### 3.3 Étapes disponibles (v0.2)
+
+| Étape | Effort | Observations | Précision supposée (σ) |
+|-------|--------|--------------|------------------------|
+| Questions : taille, poids, col et manche habituels, taille S/M/L | 1 chacune | variable correspondante | 1–4 cm |
+| Photo en pied de face | 2 | 10 mesures d'un coup | 1,5–4 cm |
+| Photo de profil | 1 | poitrine, taille, bassin (profondeur) | 2 cm |
+| Photo d'une chemise qui va bien, à plat, avec une carte bancaire | 2 | col, épaules, manche, longueur, poitrine, poignet | 0,8–1,5 cm |
+| Scan 3D LiDAR (appareils compatibles, optionnel) | 3 | toutes les mesures | 1,0–1,5 cm |
+
+Limite connue : la chemise photographiée mesure la **chemise**, pas le corps (aisance, rétrécissement) ; son biais est à modéliser.
 
 ## 4. Algorithme
 
@@ -78,6 +92,16 @@ L'algorithme s'arrête quand, pour toutes les mesures `k` : `P(|erreur_k| < tol_
 1. **Phase 0** : paramètres `μ`, `Σ` issus de jeux de données anthropométriques publics (ex. ANSUR II) ; à valider légalement (licence) et statistiquement.
 2. **Phase 1** : collecte opt-in dans l'app des mesures réelles prises par un tailleur / mètre ruban + chemises effectivement confectionnées et retours.
 3. **Phase 2** : ré-estimation périodique de `μ` et `Σ` sur les données propres ; segmentation par morphologie.
+
+### 4.5 Résultats de simulation sans ruban (population synthétique, 5 étapes max)
+
+| Scénario | Effort moyen | Cou | Poitrine | Taille | Épaules | Manche | Poignet |
+|----------|--------------|-----|----------|--------|---------|--------|---------|
+| A. Questions seules | 5 | 73 % | 36 % | 19 % | 44 % | 58 % | 74 % |
+| B. + photos | 7 | 91 % | 86 % | 64 % | 86 % | 89 % | 92 % |
+| C. + LiDAR | 9 | 92 % | 96 % | 92 % | 94 % | 91 % | 95 % |
+
+Part des mesures dans la tolérance ; tolérances assouplies pour cou et poignet (±1,0 cm). Aux tolérances initiales (cou/poignet ±0,5 cm), le cou n'atteint que 59–61 %. **Conclusion : sans ruban, viser ±1 cm sur cou et poignet et ±1,5 cm ailleurs ; prévoir une marge d'aisance et un retour post-livraison.**
 
 ## 5. Interface (application mobile native)
 

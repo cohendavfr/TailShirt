@@ -43,57 +43,106 @@ def prior_covariance() -> np.ndarray:
 
 @dataclass(frozen=True)
 class Candidate:
-    key: str        # identifiant unique
-    var: str        # variable observée
-    noise: float    # écart-type du bruit d'observation
+    """Une étape utilisateur : une question ou une capture donnant 1..n observations."""
+    key: str
+    obs: tuple      # ((variable, écart-type du bruit), ...)
     cost: float     # effort utilisateur
     label: str
+    needs: str = ""  # capteur requis ("lidar") ou ""
+
+    @property
+    def var(self) -> str:  # compat : première variable observée
+        return self.obs[0][0]
 
 
-def default_candidates() -> list[Candidate]:
+def _q(key, var, noise, label):
+    return Candidate(key, ((var, noise),), 1.0, label)
+
+
+def default_candidates(lidar: bool = False) -> list[Candidate]:
+    """Étapes disponibles avec un smartphone seul (sans mètre ruban)."""
     c = [
-        Candidate("ask_height", "height", 1.0, 1.0, "Quelle est votre taille ?"),
-        Candidate("ask_weight", "weight", 1.5, 1.0, "Quel est votre poids ?"),
-        Candidate("ask_neck_usual", "neck", 1.2, 1.0, "Quel est votre col de chemise habituel ?"),
+        _q("ask_height", "height", 1.0, "Quelle est votre taille ?"),
+        _q("ask_weight", "weight", 1.5, "Quel est votre poids ?"),
+        _q("ask_neck_usual", "neck", 1.2, "Quel est votre col de chemise habituel ?"),
+        _q("ask_sleeve_usual", "sleeve", 1.5, "Quelle est votre longueur de manche habituelle ?"),
+        _q("ask_size_usual", "chest", 4.0, "Quelle est votre taille habituelle (S, M, L...) ?"),
+        # photo en pied de face : plusieurs mesures d'un coup, bruitées
+        Candidate("photo_front", (("height", 1.5), ("shoulder", 1.5), ("sleeve", 2.0),
+                                  ("length", 2.0), ("chest", 3.0), ("waist", 3.5),
+                                  ("hip", 3.0), ("neck", 2.5), ("bicep", 3.0),
+                                  ("wrist", 4.0)), 2.0, "Photo en pied, de face"),
+        # photo de profil : donne la profondeur donc les tours
+        Candidate("photo_side", (("chest", 2.0), ("waist", 2.0), ("hip", 2.0)), 1.0,
+                  "Photo de profil"),
+        # chemise bien ajustée posée à plat à côté d'une carte bancaire
+        Candidate("photo_shirt", (("neck", 0.8), ("shoulder", 0.8), ("sleeve", 0.8),
+                                  ("length", 0.8), ("chest", 1.5), ("wrist", 0.8)), 2.0,
+                  "Photo d'une chemise qui vous va bien, à plat, avec une carte"),
     ]
-    # photo : bruit de l'estimation visuelle, effort moyen
-    photo = {"shoulder": 1.5, "sleeve": 2.0, "chest": 3.0, "hip": 3.0, "length": 2.0, "waist": 3.5}
-    c += [Candidate(f"photo_{v}", v, s, 2.0, f"Photo : {v}") for v, s in photo.items()]
-    # mètre ruban : précis, effort élevé
-    c += [Candidate(f"tape_{v}", v, 0.4, 3.0, f"Mesurez : {v}") for v in TARGETS]
+    if lidar:  # iPhone Pro / iPad Pro : capteur de profondeur
+        c.append(Candidate("scan_depth", (("height", 0.8), ("shoulder", 1.0), ("sleeve", 1.2),
+                                          ("length", 1.2), ("chest", 1.0), ("waist", 1.0),
+                                          ("hip", 1.0), ("neck", 1.2), ("bicep", 1.2),
+                                          ("wrist", 1.5)), 3.0, "Scan 3D (LiDAR)", "lidar"))
     return c
 
 
+def tape_candidates() -> list[Candidate]:
+    """Référence uniquement (mètre ruban) : non proposé à l'utilisateur."""
+    return [Candidate(f"tape_{v}", ((v, 0.4),), 3.0, f"Mesurez : {v}") for v in TARGETS]
+
+
+def _apply(mu, sigma, obs):
+    """Mise à jour gaussienne séquentielle ; mu peut être None (variance seule)."""
+    sigma = sigma.copy()
+    for var, noise in obs:
+        i = IDX[var]
+        col = sigma[:, i].copy()
+        gain = col / (sigma[i, i] + noise ** 2)
+        sigma -= np.outer(gain, col)
+    return sigma
+
+
 class Estimator:
-    def __init__(self, candidates=None, max_questions=8):
+    def __init__(self, candidates=None, max_questions=6, targets=None):
         self.mu = MEAN.copy()
         self.sigma = prior_covariance()
         self.candidates = {c.key: c for c in (candidates or default_candidates())}
         self.asked: list[str] = []
         self.max_questions = max_questions
+        self.targets = targets or TARGETS
 
     # --- contrat du moteur -------------------------------------------------
-    def update(self, key: str, value: float) -> None:
+    def update(self, key: str, values) -> None:
+        """values : dict {variable: valeur observée} (ou un float si une seule variable)."""
         c = self.candidates[key]
-        i = IDX[c.var]
-        s_col = self.sigma[:, i].copy()
-        gain = s_col / (self.sigma[i, i] + c.noise ** 2)
-        self.mu = self.mu + gain * (value - self.mu[i])
-        self.sigma = self.sigma - np.outer(gain, s_col)
+        if not isinstance(values, dict):
+            values = {c.obs[0][0]: values}
+        for var, noise in c.obs:
+            if var not in values:
+                continue
+            i = IDX[var]
+            col = self.sigma[:, i].copy()
+            gain = col / (self.sigma[i, i] + noise ** 2)
+            self.mu = self.mu + gain * (values[var] - self.mu[i])
+            self.sigma = self.sigma - np.outer(gain, col)
         self.asked.append(key)
 
     def result(self) -> dict:
         out = {}
-        for k in TARGETS:
+        for k in self.targets:
             i = IDX[k]
             sd = float(np.sqrt(max(self.sigma[i, i], 0)))
             out[k] = {"mean": float(self.mu[i]), "std": sd,
                       "ci90": (self.mu[i] - 1.645 * sd, self.mu[i] + 1.645 * sd)}
         return out
 
+    def _met(self, sigma, k):
+        return 1.645 * np.sqrt(max(sigma[IDX[k], IDX[k]], 0)) <= self.targets[k][0]
+
     def done(self) -> bool:
-        return all(1.645 * np.sqrt(max(self.sigma[IDX[k], IDX[k]], 0)) <= tol
-                   for k, (tol, _) in TARGETS.items())
+        return all(self._met(self.sigma, k) for k in self.targets)
 
     def next_question(self) -> Candidate | None:
         if self.done() or len(self.asked) >= self.max_questions:
@@ -102,17 +151,14 @@ class Estimator:
         for c in self.candidates.values():
             if c.key in self.asked:
                 continue
-            i = IDX[c.var]
-            denom = self.sigma[i, i] + c.noise ** 2
+            after = _apply(None, self.sigma, c.obs)
             red = 0.0
-            for k, (tol, w) in TARGETS.items():
+            for k, (tol, w) in self.targets.items():
                 j = IDX[k]
-                var = self.sigma[j, j]
-                if 1.645 * np.sqrt(max(var, 0)) <= tol:
+                if self._met(self.sigma, k):
                     continue  # cible déjà atteinte : ne compte plus
-                var_after = var - self.sigma[j, i] ** 2 / denom
-                # gain d'information (log-ratio) : saturant, ne sur-favorise pas une seule cible
-                red += 0.5 * w * np.log(var / max(var_after, 1e-9))
+                # gain d'information (log-ratio) : saturant
+                red += 0.5 * w * np.log(self.sigma[j, j] / max(after[j, j], 1e-9))
             score = red / c.cost
             if score > best_score:
                 best, best_score = c, score
