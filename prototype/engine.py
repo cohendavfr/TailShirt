@@ -67,6 +67,13 @@ def default_candidates(lidar: bool = False) -> list[Candidate]:
         _q("ask_neck_usual", "neck", 1.2, "Quel est votre col de chemise habituel ?"),
         _q("ask_sleeve_usual", "sleeve", 1.5, "Quelle est votre longueur de manche habituelle ?"),
         _q("ask_size_usual", "chest", 4.0, "Quelle est votre taille habituelle (S, M, L...) ?"),
+        # questions « bonne » ou « très bonne » (hypothèses de bruit à valider)
+        Candidate("ask_pants_waist", (("waist", 2.0), ("hip", 3.5)), 1.0,
+                  "Quelle est votre taille de pantalon (tour de taille) ?"),
+        Candidate("ask_arm_reach", (("sleeve", 1.8),), 1.0,
+                  "Bras le long du corps, vos doigts arrivent où (hanche, milieu de cuisse, genou) ?"),
+        Candidate("ask_shirt_fit", (("shoulder", 1.5), ("chest", 2.5), ("waist", 2.5)), 1.5,
+                  "Votre chemise actuelle serre-t-elle aux épaules, à la poitrine, au ventre ?"),
         # photo en pied de face : plusieurs mesures d'un coup, bruitées
         Candidate("photo_front", (("height", 1.5), ("shoulder", 1.5), ("sleeve", 2.0),
                                   ("length", 2.0), ("chest", 3.0), ("waist", 3.5),

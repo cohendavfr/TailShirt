@@ -39,6 +39,8 @@ def scenario(name, cands, max_steps=5, targets=RELAXED, n=1000, seed=0):
 if __name__ == "__main__":
     base = [c for c in default_candidates() if c.key.startswith("ask_")]
     nolidar = default_candidates()
-    scenario("A. questions seules", base)
+    old = [c for c in base if c.key not in ("ask_pants_waist", "ask_arm_reach", "ask_shirt_fit")]
+    scenario("A0. questions de base seules", old)
+    scenario("A. questions seules (avec pantalon, envergure, ajustement)", base)
     scenario("B. questions + photos (sans LiDAR)", nolidar)
     scenario("C. avec LiDAR", default_candidates(lidar=True))

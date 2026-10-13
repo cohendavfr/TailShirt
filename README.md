@@ -30,3 +30,7 @@ Enseignements :
 2. Sans ruban, ±0,5 cm sur cou/poignet n'est pas réaliste : viser ±1 cm.
 3. La photo d'une chemise existante est la meilleure source pour cou, manche et poignet, mais elle mesure la chemise (aisance), pas le corps.
 4. Chiffres liés à des hypothèses de bruit à vérifier avec une vraie estimation de pose, puis à recaler sur ANSUR II.
+
+## Questions retenues (qualité « bonne » ou « très bonne »)
+
+Taille de pantalon (très bonne : taille, bassin), envergure des bras (bonne : manche), ajustement de la chemise actuelle (bonne : épaules, poitrine, taille). Les bruits sont des hypothèses. Questions seules : taille 19 % → 67 %, poitrine 36 % → 51 %, épaules 44 % → 66 % ; avec photos : taille 64 % → 82 %. Le cou reste le point faible (≈ 86 % à ±1 cm).
