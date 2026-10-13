@@ -34,3 +34,5 @@ Enseignements :
 ## Questions retenues (qualité « bonne » ou « très bonne »)
 
 Taille de pantalon (très bonne : taille, bassin), envergure des bras (bonne : manche), ajustement de la chemise actuelle (bonne : épaules, poitrine, taille). Les bruits sont des hypothèses. Questions seules : taille 19 % → 67 %, poitrine 36 % → 51 %, épaules 44 % → 66 % ; avec photos : taille 64 % → 82 %. Le cou reste le point faible (≈ 86 % à ±1 cm).
+
+Ajout : taille de veste (poitrine σ 2, épaules σ 1,5) et silhouette (corpulence : poids σ 6, poitrine/taille σ 4, bassin σ 4,5). Questions seules : poitrine 63 %, taille 64 %, épaules 64 % ; avec photos : poitrine 89 %, épaules 91 %, taille 75 %.

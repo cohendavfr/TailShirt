@@ -74,6 +74,11 @@ def default_candidates(lidar: bool = False) -> list[Candidate]:
                   "Bras le long du corps, vos doigts arrivent où (hanche, milieu de cuisse, genou) ?"),
         Candidate("ask_shirt_fit", (("shoulder", 1.5), ("chest", 2.5), ("waist", 2.5)), 1.5,
                   "Votre chemise actuelle serre-t-elle aux épaules, à la poitrine, au ventre ?"),
+        Candidate("ask_jacket_size", (("chest", 2.0), ("shoulder", 1.5)), 1.0,
+                  "Quelle est votre taille de veste ou costume (46, 48, 50...) ?"),
+        Candidate("ask_silhouette", (("weight", 6.0), ("chest", 4.0), ("waist", 4.0),
+                                     ("hip", 4.5)), 1.0,
+                  "Quelle silhouette vous ressemble le plus ?"),
         # photo en pied de face : plusieurs mesures d'un coup, bruitées
         Candidate("photo_front", (("height", 1.5), ("shoulder", 1.5), ("sleeve", 2.0),
                                   ("length", 2.0), ("chest", 3.0), ("waist", 3.5),
